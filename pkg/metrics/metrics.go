@@ -37,7 +37,7 @@ var (
 	internalErrors = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "configmapsecrets_internal_errors",
 		Help: "Total number of internal errors of the configmapsecrets controller",
-	}, []string{ErrorTypeKey})
+	}, []string{ErrorTypeKey, ErrorResourceKindKey, ErrorResourceNameKey, ErrorResourceNamespaceKey})
 
 	ConfigMapSecretsMetrics = Metrics{
 		internalErrors,
