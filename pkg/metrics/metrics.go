@@ -15,14 +15,14 @@ const (
 	ErrorResourceNamespaceKey = "resourceNamespace"
 	SyncResultKey             = "result"
 
-	GetError          ErrorType = "getError"
-	DeleteError       ErrorType = "deleteError"
-	CreateError       ErrorType = "createError"
-	UpdateError       ErrorType = "updateError"
+	GetError    ErrorType = "getError"
+	DeleteError ErrorType = "deleteError"
+	CreateError ErrorType = "createError"
+	UpdateError ErrorType = "updateError"
 
-	StatusError       ErrorType = "statusError"
-	CleanupError      ErrorType = "cleanupError"
-	RenderError       ErrorType = "renderError"
+	StatusError  ErrorType = "statusError"
+	CleanupError ErrorType = "cleanupError"
+	RenderError  ErrorType = "renderError"
 
 	SyncSuccess = "success"
 	SyncFailure = "failure"
