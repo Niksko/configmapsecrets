@@ -27,6 +27,7 @@ import (
 	"github.com/machinezone/configmapsecrets/pkg/api/v1alpha1"
 	"github.com/machinezone/configmapsecrets/pkg/buildinfo"
 	"github.com/machinezone/configmapsecrets/pkg/controllers"
+	cmsmetrics "github.com/machinezone/configmapsecrets/pkg/metrics"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientscheme "k8s.io/client-go/kubernetes/scheme"
@@ -91,6 +92,7 @@ func main() {
 
 	check(metrics.Registry.Register(logMetrics), "Unable to register logging metrics")
 	check(metrics.Registry.Register(buildinfo.Collector()), "Unable to register build metrics")
+	check(cmsmetrics.RegisterMetrics(metrics.Registry), "Unable to register configmapsecret internal metrics")
 
 	cfg, err := config.GetConfig()
 	check(err, "Unable to load kubeconfig")

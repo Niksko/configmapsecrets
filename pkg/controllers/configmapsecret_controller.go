@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/machinezone/configmapsecrets/pkg/metrics"
 	"reflect"
 	"sort"
 	"strings"
@@ -155,6 +156,7 @@ func (r *ConfigMapSecret) Reconcile(ctx context.Context, req reconcile.Request) 
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.GetError, "ConfigMapSecret", req.Name, req.Namespace)
 		return reconcile.Result{}, err
 	}
 	// Set the Secret and ConfigMap references for the instance
@@ -164,6 +166,7 @@ func (r *ConfigMapSecret) Reconcile(ctx context.Context, req reconcile.Request) 
 	// Sync and cleanup
 	requeue, err := r.sync(ctx, log, cms)
 	if cleanupErr := r.cleanup(ctx, log, cms); cleanupErr != nil && err == nil {
+		metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.CleanupError, "ConfigMapSecret", req.Name, req.Namespace)
 		err = cleanupErr
 	}
 	return reconcile.Result{Requeue: requeue}, err
@@ -194,10 +197,12 @@ func (r *ConfigMapSecret) cleanup(ctx context.Context, log logr.Logger, cms *v1a
 				secretLog.Info("Cleaning up secret unnecessary, already removed")
 				continue
 			}
+			metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.GetError, "Secret", key.Name, key.Namespace)
 			secretLog.Error(err, "Cleaning up secret, get failed")
 			return err
 		}
 		if err := r.client.Delete(ctx, secret); err != nil {
+			metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.DeleteError, "Secret", key.Name, key.Namespace)
 			secretLog.Error(err, "Cleaning up secret, delete failed")
 			return err
 		}
@@ -212,15 +217,18 @@ func (r *ConfigMapSecret) sync(ctx context.Context, log logr.Logger, cms *v1alph
 		defer func() {
 			if statusErr := r.syncRenderFailureStatus(ctx, log, cms, reason, msg); statusErr != nil {
 				if err == nil {
+					metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.StatusError, "ConfigMapSecret", cms.Name, cms.Namespace)
 					err = statusErr
 				}
 				requeue = true
 			}
 		}()
 		if isConfigError(err) {
+			metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.RenderError, "ConfigMapSecret", cms.Name, cms.Namespace)
 			log.Info("Unable to render ConfigMapSecret", "warning", err)
 			return true, nil
 		}
+		metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.RenderError, "ConfigMapSecret", cms.Name, cms.Namespace)
 		log.Error(err, "Unable to render ConfigMapSecret")
 		return false, err
 	}
@@ -234,11 +242,13 @@ func (r *ConfigMapSecret) sync(ctx context.Context, log logr.Logger, cms *v1alph
 		if apierrors.IsNotFound(err) {
 			secretLog.Info("Creating Secret")
 			if err := r.client.Create(ctx, secret); err != nil {
+				metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.CreateError, "Secret", key.Name, key.Namespace)
 				secretLog.Error(err, "Unable to create Secret")
 				return false, err
 			}
 			return false, r.syncSuccessStatus(ctx, log, cms)
 		}
+		metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.GetError, "Secret", key.Name, key.Namespace)
 		secretLog.Error(err, "Unable to get Secret")
 		return false, err
 	}
@@ -257,6 +267,7 @@ func (r *ConfigMapSecret) sync(ctx context.Context, log logr.Logger, cms *v1alph
 		found.Type = secret.Type
 		secretLog.Info("Updating Secret")
 		if err := r.client.Update(ctx, found); err != nil {
+			metrics.ConfigMapSecretsMetrics.IncrementInternalErrors(metrics.UpdateError, "Secret", found.Name, found.Namespace)
 			secretLog.Error(err, "Unable to update Secret")
 			return false, err
 		}
@@ -528,10 +539,12 @@ func (r *ConfigMapSecret) configMapValue(ctx context.Context, cache map[string]*
 }
 
 func (r *ConfigMapSecret) syncSuccessStatus(ctx context.Context, log logr.Logger, cms *v1alpha1.ConfigMapSecret) error {
+	metrics.ConfigMapSecretsMetrics.IncrementTotalSyncs(metrics.SyncSuccess)
 	return r.syncStatus(ctx, log, cms, corev1.ConditionFalse, "", "")
 }
 
 func (r *ConfigMapSecret) syncRenderFailureStatus(ctx context.Context, log logr.Logger, cms *v1alpha1.ConfigMapSecret, reason, message string) error {
+	metrics.ConfigMapSecretsMetrics.IncrementTotalSyncs(metrics.SyncFailure)
 	return r.syncStatus(ctx, log, cms, corev1.ConditionTrue, reason, message)
 }
 
