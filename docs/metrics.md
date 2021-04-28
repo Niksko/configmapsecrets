@@ -1,6 +1,11 @@
 # Metrics
 
-This package exposes the following metrics
+Metrics are exposed by default on port `9091`.
+
+This application exposes standard Prometheus Golang application metrics and build info, as well log and rest client
+related metrics.
+
+In addition, this application exposes the following custom metrics:
 
 | Metric name | Metric type | Labels | Description |
 | ----------- | ----------- | ------ | ----------- |
